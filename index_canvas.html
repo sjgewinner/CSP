@@ -539,6 +539,43 @@
   }
     });
 
+    // Keep student work in this browser so a refresh does not erase it.
+    const STORAGE_KEY = "pyide_canvas_projects_v1";
+
+    function saveLocalState() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+          projects: projects,
+          collapsedFolders: collapsedFolders,
+          activeProject: activeProject,
+          activeFile: activeFile
+        }));
+      } catch (err) {
+        console.warn("Could not save IDE state.", err);
+      }
+    }
+
+    function loadLocalState() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (!saved) return false;
+
+        const state = JSON.parse(saved);
+        if (!state || typeof state.projects !== "object") return false;
+
+        projects = state.projects;
+        collapsedFolders = state.collapsedFolders || {};
+        activeProject = state.activeProject || Object.keys(projects)[0] || "";
+        activeFile = state.activeFile ||
+          (activeProject && Object.keys(projects[activeProject])[0]) || "";
+
+        return true;
+      } catch (err) {
+        console.warn("Could not load IDE state.", err);
+        return false;
+      }
+    }
+
     /* Resizers are disabled in the Canvas layout.
        The editor uses the full available width instead. */
     function initResizers() {
@@ -562,6 +599,9 @@
       activeProject = "DefaultProject";
       activeFile = "main.py";
     }
+
+    // Restore the student's latest browser-saved version, if available.
+    loadLocalState();
 
     function createNewFolder() {
       const folderName = prompt("Enter new folder/project name:");
@@ -850,6 +890,7 @@
     editor.on("change", () => {
       if (projects[activeProject] && projects[activeProject][activeFile] !== undefined) {
         projects[activeProject][activeFile] = editor.getValue();
+        saveLocalState();
       }
     });
 
@@ -866,6 +907,7 @@
       activeFile = fileName;
 
       editor.setValue(projects[activeProject][activeFile] || "");
+      saveLocalState();
       renderSidebar();
       updateHeader();
       updateRunButtonState();
@@ -980,30 +1022,73 @@
     
     code_str = ${JSON.stringify(userCode)}
     
+    LOOP_LIMIT = 50000
+    loop_counts = {}
+
+    def _loop_guard(line_number):
+        loop_counts[line_number] = loop_counts.get(line_number, 0) + 1
+        if loop_counts[line_number] > LOOP_LIMIT:
+            raise RuntimeError(
+                f"Possible infinite loop detected at line {line_number}. "
+                f"The loop ran more than {LOOP_LIMIT:,} times. "
+                "Check the loop condition or make sure the loop variable changes."
+            )
+
     class InputAwaitTransformer(ast.NodeTransformer):
         def visit_Call(self, node):
             self.generic_visit(node)
             if isinstance(node.func, ast.Name) and node.func.id == 'input':
                 return ast.Await(value=node)
             return node
-    
+
+    class LoopGuardTransformer(ast.NodeTransformer):
+        def _guard(self, node):
+            guard_call = ast.Expr(
+                value=ast.Call(
+                    func=ast.Name(id="_loop_guard", ctx=ast.Load()),
+                    args=[ast.Constant(value=getattr(node, "lineno", 0))],
+                    keywords=[]
+                )
+            )
+            ast.copy_location(guard_call, node)
+            node.body.insert(0, guard_call)
+            return node
+
+        def visit_For(self, node):
+            self.generic_visit(node)
+            return self._guard(node)
+
+        def visit_While(self, node):
+            self.generic_visit(node)
+            return self._guard(node)
+
     parsed_ast = ast.parse(code_str, filename="${activeFile}")
-    
+
     async_func = ast.AsyncFunctionDef(
         name="_user_async_main",
-        args=ast.arguments(posonlyargs=[], args=[], vararg=None, kwonlyargs=[], kw_defaults=[], kwarg=None, defaults=[]),
+        args=ast.arguments(
+            posonlyargs=[], args=[], vararg=None, kwonlyargs=[],
+            kw_defaults=[], kwarg=None, defaults=[]
+        ),
         body=parsed_ast.body,
         decorator_list=[],
         returns=None
     )
-    
+
     transformer = InputAwaitTransformer()
     transformed_func = transformer.visit(async_func)
-    
+
+    loop_transformer = LoopGuardTransformer()
+    transformed_func = loop_transformer.visit(transformed_func)
+
     mod = ast.Module(body=[transformed_func], type_ignores=[])
     ast.fix_missing_locations(mod)
-    
-    globs = {"__name__": "__main__"}
+
+    globs = {
+        "__name__": "__main__",
+        "_loop_guard": _loop_guard
+    }
+
     exec(compile(mod, filename="${activeFile}", mode="exec"), globs)
     await globs["_user_async_main"]()
     `;
@@ -1024,6 +1109,7 @@
         renderSidebar();
         
       } catch (err) {
+        saveLocalState();
         appendOutput(`\nRuntime Error:\n${err.message}`);
       }
     }
