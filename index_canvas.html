@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<html lang="en"><head>
+<html lang="en">
+<head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PyIDE</title>
@@ -9,11 +10,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/dracula.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/python/python.min.js"></script>
-  <!-- CodeMirror Comment Addon -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/comment/comment.min.js"></script>
-
-  <!-- Pyodide (Python WebAssembly Runtime) -->
-  <script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/comment/comment.min.js"></script>
 
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -79,6 +76,11 @@
       cursor: not-allowed;
     }
 
+    button.stop-btn {
+      background: #ff5555;
+      color: #ffffff;
+    }
+
     button.secondary {
       background: #bd93f9;
     }
@@ -97,22 +99,6 @@
       gap: 8px;
     }
 
-    /* Resizer Bars */
-    .resizer {
-      display: none;
-      width: 0;
-      cursor: default;
-      background: transparent;
-      transition: background 0.2s;
-      z-index: 10;
-      flex-shrink: 0;
-    }
-
-    .resizer:hover, .resizer.dragging {
-      background: #6272a4;
-    }
-
-    /* Sidebar Folder & File Tree UI */
     .sidebar-section {
       width: auto;
       min-width: 0;
@@ -278,7 +264,6 @@
       color: #50fa7b;
     }
 
-    /* Context Menu Styles */
     .context-menu {
       position: absolute;
       background: #282a36;
@@ -322,13 +307,8 @@
       overflow: hidden;
     }
 
-    .editor-section {
-      grid-area: editor;
-    }
-
-    .output-section {
-      grid-area: output;
-    }
+    .editor-section { grid-area: editor; }
+    .output-section { grid-area: output; }
 
     .section-header {
       background: #44475a;
@@ -357,62 +337,22 @@
       color: #f8f8f2;
     }
 
-    /* Canvas-friendly responsive layout */
     @media (max-width: 700px) {
-      body {
-        padding: 8px;
-        gap: 8px;
-      }
-
-      header {
-        padding: 8px 10px;
-        flex-wrap: wrap;
-        gap: 8px;
-      }
-
-      .credit-text {
-        display: none;
-      }
-
-      .status {
-        font-size: 0.8rem;
-      }
-
-      .toolbar {
-        gap: 6px;
-      }
-
-      button {
-        padding: 7px 10px;
-        font-size: 0.85rem;
-      }
-
+      body { padding: 8px; gap: 8px; }
+      header { padding: 8px 10px; flex-wrap: wrap; gap: 8px; }
+      .credit-text { display: none; }
+      .status { font-size: 0.8rem; }
+      .toolbar { gap: 6px; }
+      button { padding: 7px 10px; font-size: 0.85rem; }
       .main-container {
         grid-template-columns: 125px minmax(0, 1fr);
         grid-template-rows: minmax(0, 1fr) 180px;
       }
-
-      .explorer-header {
-        padding: 6px;
-      }
-
-      .explorer-actions {
-        flex-direction: column;
-      }
-
-      .icon-btn {
-        font-size: 0.65rem;
-      }
-
-      .file-item {
-        padding: 5px 6px;
-        font-size: 12px;
-      }
-
-      .folder-header {
-        padding: 6px;
-        font-size: 0.75rem;
-      }
+      .explorer-header { padding: 6px; }
+      .explorer-actions { flex-direction: column; }
+      .icon-btn { font-size: 0.65rem; }
+      .file-item { padding: 5px 6px; font-size: 12px; }
+      .folder-header { padding: 6px; font-size: 0.75rem; }
     }
 
     @media (max-width: 480px) {
@@ -424,16 +364,9 @@
           "editor"
           "output";
       }
-
-      .sidebar-section {
-        min-height: 0;
-      }
-
-      .toolbar button.secondary {
-        display: none;
-      }
+      .sidebar-section { min-height: 0; }
+      .toolbar button.secondary { display: none; }
     }
-
   </style>
 </head>
 <body onclick="hideContextMenu()">
@@ -443,15 +376,15 @@
       <h2>Python IDE</h2>
       <span class="credit-text">Created with Google Gemini</span>
     </div>
-    <span id="status" class="status" style="color: rgb(241, 250, 140);">Loading Python Runtime...</span>
+    <span id="status" class="status">Initializing Web Worker...</span>
     <div class="toolbar">
-      <button id="run-btn" onclick="runCode()" disabled="">▶ Run Code</button>
+      <button id="run-btn" onclick="runCode()" disabled>▶ Run Code</button>
+      <button id="stop-btn" class="stop-btn" onclick="stopExecution()" disabled>⏹ Stop</button>
       <button class="secondary" onclick="saveSelfHTML()">💾 Save IDE State (.html)</button>
     </div>
   </header>
 
   <div class="main-container">
-    <!-- Project Folder Sidebar -->
     <div class="sidebar-section" id="sidebar-pane">
       <div class="explorer-header">
         <span class="explorer-title">Explorer</span>
@@ -463,32 +396,22 @@
       <div id="sidebar-tree"></div>
     </div>
 
-    <!-- Resizer 1 (Between Sidebar & Editor) -->
-    <div class="resizer" id="resizer-1"></div>
-
-    <!-- Context Menu -->
-    <div id="context-menu" class="context-menu" style="display: none;">
+    <div id="context-menu" class="context-menu">
       <div id="ctx-rename" class="context-menu-item">✏️ Rename</div>
       <div id="ctx-delete" class="context-menu-item danger">🗑️ Delete</div>
     </div>
 
-    <!-- Editor Section -->
     <div class="editor-section" id="editor-pane">
       <div id="editor-header" class="section-header">Editor — DemoFileIO / main.py</div>
       <textarea id="code-editor" style="display: none;"></textarea>
     </div>
 
-    <!-- Resizer 2 (Between Editor & Console) -->
-    <div class="resizer" id="resizer-2"></div>
-
-    <!-- Console Section -->
     <div class="output-section" id="output-pane">
       <div class="section-header">Console Output</div>
       <div id="output">Initialize code and press Run...</div>
     </div>
   </div>
 
-  <!-- Custom Input Dialog Modal -->
   <div id="input-modal" style="display: none; position: fixed; inset: 0px; background: rgba(0, 0, 0, 0.7); align-items: center; justify-content: center; z-index: 9999;">
     <div style="background: #282a36; border: 1px solid #6272a4; padding: 18px; border-radius: 8px; width: 320px; display: flex; flex-direction: column; gap: 10px;">
       <label id="input-modal-prompt" style="font-family: monospace; color: #f8f8f2; font-size: 14px;">Enter something to add: </label>
@@ -497,7 +420,6 @@
     </div>
   </div>
 
-  <!-- Multi-Project Folder Structure -->
   <script id="embedded-projects" type="application/json">
 {
   "DemoFunctions": {
@@ -512,19 +434,145 @@
 }
 </script>
 
-  <script>
+  <!-- Inline Web Worker Script Source -->
+  <script id="worker-script" type="text/plain">
+    importScripts('https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js');
+
     let pyodide;
+    let pendingInputResolve = null;
+
+    self.onmessage = async function(e) {
+      const data = e.data;
+
+      if (data.type === 'init') {
+        try {
+          pyodide = await loadPyodide({
+            stdout: (text) => self.postMessage({ type: 'stdout', text }),
+            stderr: (text) => self.postMessage({ type: 'stderr', text })
+          });
+
+          await pyodide.runPythonAsync(`
+            import builtins
+            import sys
+            import js
+
+            async def custom_input(prompt_msg=""):
+                sys.stdout.flush()
+                return await js.customPyInputAsync(str(prompt_msg))
+
+            builtins.input = custom_input
+          `);
+
+          self.customPyInputAsync = function(promptText) {
+            return new Promise((resolve) => {
+              pendingInputResolve = resolve;
+              self.postMessage({ type: 'input_request', prompt: promptText });
+            });
+          };
+
+          await pyodide.loadPackage("micropip");
+          const micropip = pyodide.pyimport("micropip");
+          self.postMessage({ type: 'status', text: 'Installing network packages...' });
+          await micropip.install(['requests', 'pyodide-http']);
+
+          await pyodide.runPythonAsync(`
+            import pyodide_http
+            pyodide_http.patch_all()
+          `);
+
+          self.postMessage({ type: 'ready' });
+        } catch (err) {
+          self.postMessage({ type: 'error', error: err.message });
+        }
+      } 
+      else if (data.type === 'input_response') {
+        if (pendingInputResolve) {
+          pendingInputResolve(data.value);
+          pendingInputResolve = null;
+        }
+      } 
+      else if (data.type === 'run') {
+        try {
+          const existingFSFiles = pyodide.FS.readdir('.').filter(f => !f.startsWith('.'));
+          for (const filename of existingFSFiles) {
+            try {
+              const stat = pyodide.FS.stat(filename);
+              if (pyodide.FS.isFile(stat.mode) && !pyodide.FS.isDir(stat.mode)) {
+                pyodide.FS.unlink(filename);
+              }
+            } catch (e) {}
+          }
+
+          for (const [filename, content] of Object.entries(data.files)) {
+            pyodide.FS.writeFile(filename, content);
+          }
+
+          const wrappedCode = `
+import ast
+import sys
+import builtins
+
+code_str = ${JSON.stringify(data.code)}
+
+class InputAwaitTransformer(ast.NodeTransformer):
+    def visit_Call(self, node):
+        self.generic_visit(node)
+        if isinstance(node.func, ast.Name) and node.func.id == 'input':
+            return ast.Await(value=node)
+        return node
+
+parsed_ast = ast.parse(code_str, filename="${data.activeFile}")
+
+async_func = ast.AsyncFunctionDef(
+    name="_user_async_main",
+    args=ast.arguments(
+        posonlyargs=[], args=[], vararg=None, kwonlyargs=[],
+        kw_defaults=[], kwarg=None, defaults=[]
+    ),
+    body=parsed_ast.body,
+    decorator_list=[],
+    returns=None
+)
+
+transformer = InputAwaitTransformer()
+transformed_func = transformer.visit(async_func)
+
+mod = ast.Module(body=[transformed_func], type_ignores=[])
+ast.fix_missing_locations(mod)
+
+globs = {"__name__": "__main__"}
+exec(compile(mod, filename="${data.activeFile}", mode="exec"), globs)
+await globs["_user_async_main"]()
+`;
+          await pyodide.runPythonAsync(wrappedCode);
+
+          const updatedFiles = {};
+          const filesInPyodide = pyodide.FS.readdir('.').filter(f => !f.startsWith('.'));
+          for (const filename of filesInPyodide) {
+            try {
+              const stat = pyodide.FS.stat(filename);
+              if (pyodide.FS.isFile(stat.mode) && !pyodide.FS.isDir(stat.mode)) {
+                updatedFiles[filename] = pyodide.FS.readFile(filename, { encoding: 'utf8' });
+              }
+            } catch (err) {}
+          }
+
+          self.postMessage({ type: 'run_complete', updatedFiles });
+        } catch (err) {
+          self.postMessage({ type: 'run_error', error: err.message });
+        }
+      }
+    };
+  </script>
+
+  <script>
+    let worker = null;
     let isPyodideReady = false;
+    let isRunning = false;
     let projects = {};
     let collapsedFolders = {}; 
     let activeProject = "";
     let activeFile = "";
-
-    function updateRunButtonState() {
-      const runBtn = document.getElementById("run-btn");
-      const isPythonFile = activeFile.toLowerCase().endsWith(".py");
-      runBtn.disabled = !(isPyodideReady && isPythonFile);
-    }
 
     const editor = CodeMirror.fromTextArea(document.getElementById("code-editor"), {
       mode: "python",
@@ -534,12 +582,11 @@
       tabSize: 4,
       indentWithTabs: false,
       extraKeys: {
-    "Ctrl-/": "toggleComment",
-    "Cmd-/": "toggleComment"
-  }
+        "Ctrl-/": "toggleComment",
+        "Cmd-/": "toggleComment"
+      }
     });
 
-    // Keep student work in this browser so a refresh does not erase it.
     const STORAGE_KEY = "pyide_canvas_projects_v1";
 
     function saveLocalState() {
@@ -576,14 +623,6 @@
       }
     }
 
-    /* Resizers are disabled in the Canvas layout.
-       The editor uses the full available width instead. */
-    function initResizers() {
-      // Intentionally empty for the Canvas-friendly layout.
-    }
-
-    initResizers();
-
     try {
       const container = document.getElementById("embedded-projects");
       projects = JSON.parse(container.textContent);
@@ -594,29 +633,157 @@
         activeFile = Object.keys(projects[firstProj])[0] || "";
       }
     } catch (err) {
-      console.error("Failed to parse embedded project structure", err);
       projects = { "DefaultProject": { "main.py": "print('Hello World')" } };
       activeProject = "DefaultProject";
       activeFile = "main.py";
     }
 
-    // Restore the student's latest browser-saved version, if available.
     loadLocalState();
+
+    function updateRunButtonState() {
+      const runBtn = document.getElementById("run-btn");
+      const stopBtn = document.getElementById("stop-btn");
+      const isPythonFile = activeFile.toLowerCase().endsWith(".py");
+
+      runBtn.disabled = !isPyodideReady || isRunning || !isPythonFile;
+      stopBtn.disabled = !isRunning;
+    }
+
+    function initWorker() {
+      if (worker) worker.terminate();
+
+      const workerBlob = new Blob([document.getElementById('worker-script').textContent], { type: 'application/javascript' });
+      worker = new Worker(URL.createObjectURL(workerBlob));
+
+      worker.onmessage = handleWorkerMessage;
+
+      document.getElementById("status").innerText = "Loading Python Runtime...";
+      document.getElementById("status").style.color = "#f1fa8c";
+      isPyodideReady = false;
+      isRunning = false;
+      updateRunButtonState();
+
+      worker.postMessage({ type: 'init' });
+    }
+
+    function handleWorkerMessage(e) {
+      const data = e.data;
+
+      if (data.type === 'status') {
+        document.getElementById("status").innerText = data.text;
+      } 
+      else if (data.type === 'ready') {
+        isPyodideReady = true;
+        document.getElementById("status").innerText = "Python Ready";
+        document.getElementById("status").style.color = "#50fa7b";
+        updateRunButtonState();
+      } 
+      else if (data.type === 'stdout') {
+        appendOutput(data.text + "\n");
+      } 
+      else if (data.type === 'stderr') {
+        appendOutput(`Error: ${data.text}\n`);
+      } 
+      else if (data.type === 'input_request') {
+        showInputModal(data.prompt);
+      } 
+      else if (data.type === 'run_complete') {
+        isRunning = false;
+        document.getElementById("status").innerText = "Python Ready";
+        document.getElementById("status").style.color = "#50fa7b";
+        updateRunButtonState();
+
+        if (data.updatedFiles) {
+          for (const [filename, content] of Object.entries(data.updatedFiles)) {
+            projects[activeProject][filename] = content;
+          }
+          renderSidebar();
+        }
+      } 
+      else if (data.type === 'run_error') {
+        isRunning = false;
+        document.getElementById("status").innerText = "Python Ready";
+        document.getElementById("status").style.color = "#50fa7b";
+        updateRunButtonState();
+        appendOutput(`\nRuntime Error:\n${data.error}\n`);
+      } 
+      else if (data.type === 'error') {
+        document.getElementById("status").innerText = "Failed to load Python engine.";
+        document.getElementById("status").style.color = "#ff5555";
+      }
+    }
+
+    function showInputModal(promptText) {
+      const modal = document.getElementById("input-modal");
+      const label = document.getElementById("input-modal-prompt");
+      const inputField = document.getElementById("input-modal-field");
+      const submitBtn = document.getElementById("input-modal-submit");
+
+      label.textContent = promptText || "Input requested:";
+      inputField.value = "";
+      modal.style.display = "flex";
+
+      setTimeout(() => inputField.focus(), 50);
+
+      const handleSubmit = () => {
+        const value = inputField.value;
+        modal.style.display = "none";
+        submitBtn.removeEventListener("click", handleSubmit);
+        inputField.removeEventListener("keydown", handleKeyDown);
+        worker.postMessage({ type: 'input_response', value });
+      };
+
+      const handleKeyDown = (e) => {
+        if (e.key === "Enter") handleSubmit();
+      };
+
+      submitBtn.addEventListener("click", handleSubmit);
+      inputField.addEventListener("keydown", handleKeyDown);
+    }
+
+    async function runCode() {
+      if (!isPyodideReady || isRunning) return;
+
+      const outputDiv = document.getElementById("output");
+      outputDiv.textContent = "";
+
+      if (projects[activeProject] && projects[activeProject][activeFile] !== undefined) {
+        projects[activeProject][activeFile] = editor.getValue();
+      }
+
+      isRunning = true;
+      document.getElementById("status").innerText = "Running script...";
+      document.getElementById("status").style.color = "#f1fa8c";
+      updateRunButtonState();
+
+      worker.postMessage({
+        type: 'run',
+        code: projects[activeProject][activeFile],
+        activeFile: activeFile,
+        files: projects[activeProject]
+      });
+    }
+
+    function stopExecution() {
+      if (!isRunning) return;
+
+      appendOutput("\n\n[Execution Terminated by User]\n");
+      document.getElementById("input-modal").style.display = "none";
+      initWorker();
+    }
+
+    function appendOutput(text) {
+      const outputDiv = document.getElementById("output");
+      outputDiv.textContent += text;
+      outputDiv.scrollTop = outputDiv.scrollHeight;
+    }
 
     function createNewFolder() {
       const folderName = prompt("Enter new folder/project name:");
       if (!folderName) return;
 
       const cleanName = folderName.trim().replace(/[^a-zA-Z0-9_\-]/g, "");
-      if (!cleanName) {
-        alert("Invalid folder name.");
-        return;
-      }
-
-      if (projects[cleanName]) {
-        alert("A folder with this name already exists.");
-        return;
-      }
+      if (!cleanName || projects[cleanName]) return;
 
       projects[cleanName] = {
         "main.py": `# Main script for ${cleanName}\nprint("Hello from ${cleanName}!")\n`
@@ -632,10 +799,7 @@
     }
 
     function createNewFile(targetProject = activeProject) {
-      if (!projects[targetProject]) {
-        alert("Please select or create a folder first.");
-        return;
-      }
+      if (!projects[targetProject]) return;
 
       let fileName = prompt(`Create new file in '${targetProject}':`);
       if (!fileName) return;
@@ -645,10 +809,7 @@
         fileName += ".py";
       }
 
-      if (projects[targetProject][fileName] !== undefined) {
-        alert("A file with this name already exists in this folder.");
-        return;
-      }
+      if (projects[targetProject][fileName] !== undefined) return;
 
       projects[targetProject][fileName] = "# New python script\n";
       collapsedFolders[targetProject] = false;
@@ -660,15 +821,7 @@
       if (!newName || newName.trim() === oldName) return;
 
       const cleanName = newName.trim().replace(/[^a-zA-Z0-9_\-]/g, "");
-      if (!cleanName) {
-        alert("Invalid folder name.");
-        return;
-      }
-
-      if (projects[cleanName]) {
-        alert("A folder with this name already exists.");
-        return;
-      }
+      if (!cleanName || projects[cleanName]) return;
 
       if (projects[activeProject] && projects[activeProject][activeFile] !== undefined) {
         projects[activeProject][activeFile] = editor.getValue();
@@ -680,9 +833,7 @@
       collapsedFolders[cleanName] = collapsedFolders[oldName];
       delete collapsedFolders[oldName];
 
-      if (activeProject === oldName) {
-        activeProject = cleanName;
-      }
+      if (activeProject === oldName) activeProject = cleanName;
 
       renderSidebar();
       updateHeader();
@@ -698,10 +849,7 @@
         newFileName += ".py";
       }
 
-      if (projects[projectName][newFileName] !== undefined) {
-        alert("A file with this name already exists in this folder.");
-        return;
-      }
+      if (projects[projectName][newFileName] !== undefined) return;
 
       if (projectName === activeProject && oldFileName === activeFile) {
         projects[activeProject][activeFile] = editor.getValue();
@@ -720,7 +868,7 @@
     }
 
     function deleteFolder(projName) {
-      if (!confirm(`Are you sure you want to delete folder '${projName}' and all its files?`)) return;
+      if (!confirm(`Are you sure you want to delete folder '${projName}'?`)) return;
 
       delete projects[projName];
       delete collapsedFolders[projName];
@@ -822,15 +970,8 @@
         const actionsDiv = folderHeader.querySelector(".item-actions");
         const [renameBtn, addBtn] = actionsDiv.querySelectorAll(".action-btn");
         
-        renameBtn.onclick = (e) => {
-          e.stopPropagation();
-          renameFolder(projName);
-        };
-
-        addBtn.onclick = (e) => {
-          e.stopPropagation();
-          createNewFile(projName);
-        };
+        renameBtn.onclick = (e) => { e.stopPropagation(); renameFolder(projName); };
+        addBtn.onclick = (e) => { e.stopPropagation(); createNewFile(projName); };
 
         folderDiv.appendChild(folderHeader);
 
@@ -852,25 +993,14 @@
             </div>
           `;
 
-          fileItem.onclick = (e) => {
-            e.stopPropagation();
-            switchFile(projName, fileName);
-          };
-
+          fileItem.onclick = (e) => { e.stopPropagation(); switchFile(projName, fileName); };
           fileItem.oncontextmenu = (e) => showContextMenu(e, "file", projName, fileName);
 
           const fileActions = fileItem.querySelector(".item-actions");
           const [renameFileBtn, deleteFileBtn] = fileActions.querySelectorAll(".action-btn");
 
-          renameFileBtn.onclick = (e) => {
-            e.stopPropagation();
-            renameFile(projName, fileName);
-          };
-
-          deleteFileBtn.onclick = (e) => {
-            e.stopPropagation();
-            deleteFile(projName, fileName);
-          };
+          renameFileBtn.onclick = (e) => { e.stopPropagation(); renameFile(projName, fileName); };
+          deleteFileBtn.onclick = (e) => { e.stopPropagation(); deleteFile(projName, fileName); };
 
           fileList.appendChild(fileItem);
         }
@@ -885,7 +1015,6 @@
     }
     renderSidebar();
     updateHeader();
-    updateRunButtonState();
 
     editor.on("change", () => {
       if (projects[activeProject] && projects[activeProject][activeFile] !== undefined) {
@@ -913,207 +1042,6 @@
       updateRunButtonState();
     }
 
-    async function initPyodide() {
-      try {
-        window.customPyInputAsync = (promptText) => {
-          return new Promise((resolve) => {
-            const modal = document.getElementById("input-modal");
-            const label = document.getElementById("input-modal-prompt");
-            const inputField = document.getElementById("input-modal-field");
-            const submitBtn = document.getElementById("input-modal-submit");
-            
-            label.textContent = promptText || "Input requested:";
-            inputField.value = "";
-            modal.style.display = "flex";
-            
-            setTimeout(() => inputField.focus(), 50);
-            
-            const handleSubmit = () => {
-              const value = inputField.value;
-              modal.style.display = "none";
-              submitBtn.removeEventListener("click", handleSubmit);
-              inputField.removeEventListener("keydown", handleKeyDown);
-              resolve(value);
-            };
-            
-            const handleKeyDown = (e) => {
-              if (e.key === "Enter") handleSubmit();
-            };
-            
-            submitBtn.addEventListener("click", handleSubmit);
-            inputField.addEventListener("keydown", handleKeyDown);
-          });
-        };
-        
-        pyodide = await loadPyodide({
-          stdout: (text) => appendOutput(text + "\n"),
-          stderr: (text) => appendOutput(`Error: ${text}\n`),
-        });
-        
-        await pyodide.runPythonAsync(`
-          import builtins
-          import js
-          import sys
-          
-          async def custom_input(prompt_msg=""):
-              sys.stdout.flush()
-              return await js.customPyInputAsync(str(prompt_msg))
-          
-          builtins.input = custom_input
-        `);
-        
-        await pyodide.loadPackage("micropip");
-        const micropip = pyodide.pyimport("micropip");
-        
-        document.getElementById("status").innerText = "Installing network packages...";
-        await micropip.install(['requests', 'pyodide-http']);
-        
-        await pyodide.runPythonAsync(`
-          import pyodide_http
-          pyodide_http.patch_all()
-        `);
-        
-        isPyodideReady = true;
-        document.getElementById("status").innerText = "Python Ready";
-        document.getElementById("status").style.color = "#50fa7b";
-        updateRunButtonState();
-      } catch (err) {
-        console.error(err);
-        document.getElementById("status").innerText = "Failed to load Python engine.";
-        document.getElementById("status").style.color = "#ff5555";
-      }
-    }
-
-    function appendOutput(text) {
-      const outputDiv = document.getElementById("output");
-      outputDiv.textContent += text;
-      outputDiv.scrollTop = outputDiv.scrollHeight;
-    }
-
-    async function runCode() {
-      const outputDiv = document.getElementById("output");
-      outputDiv.textContent = "";
-      
-      if (projects[activeProject] && projects[activeProject][activeFile] !== undefined) {
-        projects[activeProject][activeFile] = editor.getValue();
-      }
-      
-      try {
-        const existingFSFiles = pyodide.FS.readdir('.').filter(f => !f.startsWith('.'));
-        for (const filename of existingFSFiles) {
-          try {
-            const stat = pyodide.FS.stat(filename);
-            if (pyodide.FS.isFile(stat.mode) && !pyodide.FS.isDir(stat.mode)) {
-              pyodide.FS.unlink(filename);
-            }
-          } catch (e) {}
-        }
-        
-        const activeFolderFiles = projects[activeProject];
-        for (const [filename, content] of Object.entries(activeFolderFiles)) {
-          pyodide.FS.writeFile(filename, content);
-        }
-        
-        const userCode = projects[activeProject][activeFile];
-        const wrappedCode = `
-    import ast
-    import sys
-    import builtins
-    
-    code_str = ${JSON.stringify(userCode)}
-    
-    LOOP_LIMIT = 50000
-    loop_counts = {}
-
-    def _loop_guard(line_number):
-        loop_counts[line_number] = loop_counts.get(line_number, 0) + 1
-        if loop_counts[line_number] > LOOP_LIMIT:
-            raise RuntimeError(
-                f"Possible infinite loop detected at line {line_number}. "
-                f"The loop ran more than {LOOP_LIMIT:,} times. "
-                "Check the loop condition or make sure the loop variable changes."
-            )
-
-    class InputAwaitTransformer(ast.NodeTransformer):
-        def visit_Call(self, node):
-            self.generic_visit(node)
-            if isinstance(node.func, ast.Name) and node.func.id == 'input':
-                return ast.Await(value=node)
-            return node
-
-    class LoopGuardTransformer(ast.NodeTransformer):
-        def _guard(self, node):
-            guard_call = ast.Expr(
-                value=ast.Call(
-                    func=ast.Name(id="_loop_guard", ctx=ast.Load()),
-                    args=[ast.Constant(value=getattr(node, "lineno", 0))],
-                    keywords=[]
-                )
-            )
-            ast.copy_location(guard_call, node)
-            node.body.insert(0, guard_call)
-            return node
-
-        def visit_For(self, node):
-            self.generic_visit(node)
-            return self._guard(node)
-
-        def visit_While(self, node):
-            self.generic_visit(node)
-            return self._guard(node)
-
-    parsed_ast = ast.parse(code_str, filename="${activeFile}")
-
-    async_func = ast.AsyncFunctionDef(
-        name="_user_async_main",
-        args=ast.arguments(
-            posonlyargs=[], args=[], vararg=None, kwonlyargs=[],
-            kw_defaults=[], kwarg=None, defaults=[]
-        ),
-        body=parsed_ast.body,
-        decorator_list=[],
-        returns=None
-    )
-
-    transformer = InputAwaitTransformer()
-    transformed_func = transformer.visit(async_func)
-
-    loop_transformer = LoopGuardTransformer()
-    transformed_func = loop_transformer.visit(transformed_func)
-
-    mod = ast.Module(body=[transformed_func], type_ignores=[])
-    ast.fix_missing_locations(mod)
-
-    globs = {
-        "__name__": "__main__",
-        "_loop_guard": _loop_guard
-    }
-
-    exec(compile(mod, filename="${activeFile}", mode="exec"), globs)
-    await globs["_user_async_main"]()
-    `;
-    
-        await pyodide.runPythonAsync(wrappedCode);
-        
-        const filesInPyodide = pyodide.FS.readdir('.').filter(f => !f.startsWith('.'));
-        for (const filename of filesInPyodide) {
-          try {
-            const stat = pyodide.FS.stat(filename);
-            if (pyodide.FS.isFile(stat.mode) && !pyodide.FS.isDir(stat.mode)) {
-              const content = pyodide.FS.readFile(filename, { encoding: 'utf8' });
-              projects[activeProject][filename] = content;
-            }
-          } catch (err) {}
-        }
-        
-        renderSidebar();
-        
-      } catch (err) {
-        saveLocalState();
-        appendOutput(`\nRuntime Error:\n${err.message}`);
-      }
-    }
-
     function saveSelfHTML() {
       if (projects[activeProject] && projects[activeProject][activeFile] !== undefined) {
         projects[activeProject][activeFile] = editor.getValue();
@@ -1137,12 +1065,15 @@
 
       const statusSpan = docClone.querySelector("#status");
       if (statusSpan) {
-        statusSpan.textContent = "Loading Python Runtime...";
+        statusSpan.textContent = "Initializing Web Worker...";
         statusSpan.style.color = "#f1fa8c";
       }
 
       const runBtn = docClone.querySelector("#run-btn");
       if (runBtn) runBtn.disabled = true;
+
+      const stopBtn = docClone.querySelector("#stop-btn");
+      if (stopBtn) stopBtn.disabled = true;
 
       const now = new Date();
       const yy = String(now.getFullYear()).slice(-2);
@@ -1163,7 +1094,8 @@
       URL.revokeObjectURL(a.href);
     }
 
-    initPyodide();
+    // Start Worker on Page Load
+    initWorker();
   </script>
-
-</body></html>
+</body>
+</html>
