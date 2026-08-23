@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>High School Python Turtle IDE</title>
+    <title>High School Python Turtle IDE v2</title>
     
-    <!-- Load Brython Components and Standard Library -->
+    <!-- Load Brython Components -->
     <script src="https://cloudflare.com"></script>
     <script src="https://cloudflare.com"></script>
 
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #1e1e2e; color: #cdd6f4; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background-color: #1e1e2e; color: #cdd6f4; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         header { background-color: #11111b; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #313244; }
         h1 { font-size: 1.2rem; color: #89b4fa; }
         .controls button { background-color: #a6e3a1; color: #11111b; border: none; padding: 8px 20px; font-size: 1rem; font-weight: bold; cursor: pointer; border-radius: 6px; transition: transform 0.1s; margin-left: 10px; }
@@ -19,13 +19,12 @@
         .controls .clear-btn { background-color: #f38ba8; }
         .main-container { display: flex; flex: 1; overflow: hidden; }
         .editor-side { width: 50%; display: flex; flex-direction: column; border-right: 2px solid #313244; }
-        textarea { width: 100%; flex: 1; background-color: #181825; color: #a6e3a1; font-family: "Courier New", Courier, monospace; font-size: 1rem; padding: 15px; border: none; resize: none; outline: none; line-height: 1.5; }
-        .output-side { width: 50%; display: flex; flex-direction: column; background-color: #313244; }
-        /* The container where Brython injects the Turtle SVG canvas */
-        #turtle-canvas { flex: 1; background-color: #ffffff; position: relative; overflow: auto; display: flex; justify-content: center; align-items: center; }
-        /* Target internal SVG elements drawn by Brython's turtle module */
-        #turtle-canvas svg { max-width: 100%; max-height: 100%; }
-        .console { height: 150px; background-color: #11111b; color: #f38ba8; font-family: monospace; padding: 12px; overflow-y: auto; border-top: 2px solid #313244; font-size: 0.9rem; white-space: pre-wrap; }
+        textarea { width: 100%; flex: 1; background-color: #181825; color: #a6e3a1; font-family: "Courier New", Courier, monospace; font-size: 1.05rem; padding: 15px; border: none; resize: none; outline: none; line-height: 1.5; tab-size: 4; }
+        .output-side { width: 50%; display: flex; flex-direction: column; background-color: #ffffff; }
+        #canvas-container { flex: 1; background-color: #ffffff; display: flex; justify-content: center; align-items: center; overflow: hidden; position: relative; }
+        /* Target wrapper where Brython places turtle graphics */
+        #turtle-div { width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; }
+        .console { height: 130px; background-color: #11111b; color: #f38ba8; font-family: monospace; padding: 12px; overflow-y: auto; border-top: 2px solid #313244; font-size: 0.9rem; white-space: pre-wrap; }
         .console.success { color: #a6e3a1; }
     </style>
 </head>
@@ -35,81 +34,86 @@
     <header>
         <h1>🐢 Classroom Python Turtle IDE</h1>
         <div class="controls">
-            <button class="clear-btn" id="clear-btn">Clear Canvas</button>
+            <button class="clear-btn" id="clear-btn">Reset</button>
             <button id="run-btn">▶ Run Code</button>
         </div>
     </header>
 
     <div class="main-container">
-        <!-- Text Editor Panel -->
+        <!-- Editor Box -->
         <div class="editor-side">
-            <textarea id="code-editor" spellcheck="false">import turtle
+            <textarea id="code-editor" spellcheck="false" autocomplete="off" autocapitalize="off">import turtle
 
-# Setup a turtle named "Bob"
-bob = turtle.Turtle()
-bob.speed(3)
+t = turtle.Turtle()
+t.speed(5)
+t.width(3)
 
-# Draw a colorful square loop
-colors = ["red", "blue", "green", "purple"]
+colors = ["red", "blue", "green", "orange"]
+
 for i in range(4):
-    bob.color(colors[i])
-    bob.forward(100)
-    bob.left(90)
+    t.color(colors[i])
+    t.forward(100)
+    t.left(90)
 </textarea>
         </div>
 
-        <!-- Live Presentation / Display Panel -->
+        <!-- Output Visualization Box -->
         <div class="output-side">
-            <div id="turtle-canvas"></div>
-            <div class="console" id="error-console">System ready. Click 'Run Code' to execute.</div>
+            <div id="canvas-container">
+                <!-- Turtle graph targets this element safely -->
+                <div id="turtle-div"></div>
+            </div>
+            <div class="console" id="error-console">Ready. Click 'Run Code'.</div>
         </div>
     </div>
 
-    <!-- Orchestration Script linking HTML UI to Brython Runtime -->
+    <!-- Python Execution Engine Script -->
     <script type="text/python">
-        from browser import document, window, sys
+        from browser import document, sys, window
         import turtle
 
-        class ConsoleWriter:
-            def __init__(self, element_id):
-                self.element = document[element_id]
-            def write(self, data):
-                self.element.text += str(data)
+        class IDEConsole:
+            def __init__(self, target_id):
+                self.target = document[target_id]
+            def write(self, text):
+                self.target.text += str(text)
             def flush(self):
                 pass
 
-        sys.stderr = ConsoleWriter("error-console")
-        sys.stdout = ConsoleWriter("error-console")
+        sys.stderr = IDEConsole("error-console")
+        sys.stdout = IDEConsole("error-console")
 
-        def run_python_code(event):
-            # 1. Reset and wipe the display environment cleanly
-            document["turtle-canvas"].html = ""
+        def run_code(ev):
+            # 1. Clear out log data safely
             document["error-console"].text = ""
             document["error-console"].attrs["class"] = "console"
             
-            # 2. Instruct the underlying Brython engine to map turtle output to our specific div container
-            turtle.set_defaults(container="turtle-canvas")
+            # 2. Safely wipe and reinitialize turtle DOM container
+            document["turtle-div"].html = ""
             
-            # 3. Retrieve raw text string from the DOM text area
-            user_source_code = document["code-editor"].value
+            # 3. Explicitly pass DOM wrapper element directly to turtle configurations
+            turtle.set_defaults(turtle_canvas_wrapper=document["turtle-div"])
+            
+            # 4. Fetch the code inside textarea 
+            source_code = document["code-editor"].value
             
             try:
-                # 4. Safely compile and isolate dynamic user context execution natively
-                exec(user_source_code, {})
-                if document["error-console"].text == "":
-                    document["error-console"].text = "Code executed cleanly with no syntax errors!"
+                # 5. Execute code within an isolated dictionary script environment
+                exec(source_code, {"__name__": "__main__"})
+                if not document["error-console"].text:
+                    document["error-console"].text = "Code executed cleanly with no errors!"
                     document["error-console"].attrs["class"] = "console success"
-            except Exception as err:
-                sys.stderr.write(f"Error: {err}\n")
+            except Exception as error:
+                sys.stderr.write(f"Error during runtime: {error}\n")
 
-        def clear_canvas(event):
-            document["turtle-canvas"].html = ""
-            document["error-console"].text = "Canvas cleared safely."
+        def reset_env(ev):
+            document["turtle-div"].html = ""
+            document["error-console"].text = "Canvas reset completely."
             document["error-console"].attrs["class"] = "console success"
 
-        # Explicitly map DOM listener hooks to Python background event handlers
-        document["run-btn"].bind("click", run_python_code)
-        document["clear-btn"].bind("click", clear_canvas)
+        # Attach events safely to HTML buttons
+        document["run-btn"].bind("click", run_code)
+        document["clear-btn"].bind("click", reset_env)
     </script>
 
 </body>
