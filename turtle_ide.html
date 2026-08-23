@@ -3,231 +3,113 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Python Turtle Student IDE</title>
-    <!-- Brython Core and Standard Library from CDN -->
-    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/brython/3.12.4/brython.min.js"></script>
-    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/brython/3.12.4/brython_stdlib.min.js"></script>
+    <title>High School Python Turtle IDE</title>
+    
+    <!-- Load Brython Components and Standard Library -->
+    <script src="https://cloudflare.com"></script>
+    <script src="https://cloudflare.com"></script>
+
     <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        }
-        body {
-            background-color: #f4f6f9;
-            color: #333;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            overflow: hidden;
-        }
-        header {
-            background-color: #2c3e50;
-            color: white;
-            padding: 10px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        h1 {
-            font-size: 1.2rem;
-            font-weight: 600;
-        }
-        .subtitle {
-            font-size: 0.85rem;
-            color: #bdc3c7;
-        }
-        .controls {
-            display: flex;
-            gap: 10px;
-        }
-        button {
-            padding: 8px 16px;
-            font-size: 0.9rem;
-            font-weight: bold;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        #run-btn {
-            background-color: #2ecc71;
-            color: white;
-        }
-        #run-btn:hover {
-            background-color: #27ae60;
-        }
-        #clear-btn {
-            background-color: #e74c3c;
-            color: white;
-        }
-        #clear-btn:hover {
-            background-color: #c0392b;
-        }
-        .main-container {
-            display: flex;
-            flex: 1;
-            overflow: hidden;
-            background: #fff;
-        }
-        .panel {
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-        }
-        #left-panel {
-            width: 45%;
-            border-right: 2px solid #e2e8f0;
-        }
-        #right-panel {
-            width: 55%;
-            background: #fafafa;
-        }
-        .panel-header {
-            background: #edf2f7;
-            padding: 6px 12px;
-            font-size: 0.8rem;
-            font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: #4a5568;
-            border-bottom: 1px solid #e2e8f0;
-        }
-        textarea {
-            width: 100%;
-            flex: 1;
-            padding: 12px;
-            font-family: "Courier New", Courier, monospace;
-            font-size: 1rem;
-            border: none;
-            resize: none;
-            outline: none;
-            line-height: 1.5;
-            background-color: #1e1e1e;
-            color: #d4d4d4;
-        }
-        #turtle-container {
-            flex: 1;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background-color: #ffffff;
-            position: relative;
-            overflow: auto;
-        }
-        /* Brython maps turtle directly to a div with this id */
-        #turtle-div {
-            border: 1px solid #e2e8f0;
-            background: #fff;
-        }
-        #console-area {
-            height: 150px;
-            background-color: #151515;
-            color: #ff5555;
-            font-family: monospace;
-            padding: 10px;
-            overflow-y: auto;
-            border-top: 2px solid #e2e8f0;
-            white-space: pre-wrap;
-            font-size: 0.9rem;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #1e1e2e; color: #cdd6f4; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        header { background-color: #11111b; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #313244; }
+        h1 { font-size: 1.2rem; color: #89b4fa; }
+        .controls button { background-color: #a6e3a1; color: #11111b; border: none; padding: 8px 20px; font-size: 1rem; font-weight: bold; cursor: pointer; border-radius: 6px; transition: transform 0.1s; margin-left: 10px; }
+        .controls button:active { transform: scale(0.97); }
+        .controls .clear-btn { background-color: #f38ba8; }
+        .main-container { display: flex; flex: 1; overflow: hidden; }
+        .editor-side { width: 50%; display: flex; flex-direction: column; border-right: 2px solid #313244; }
+        textarea { width: 100%; flex: 1; background-color: #181825; color: #a6e3a1; font-family: "Courier New", Courier, monospace; font-size: 1rem; padding: 15px; border: none; resize: none; outline: none; line-height: 1.5; }
+        .output-side { width: 50%; display: flex; flex-direction: column; background-color: #313244; }
+        /* The container where Brython injects the Turtle SVG canvas */
+        #turtle-canvas { flex: 1; background-color: #ffffff; position: relative; overflow: auto; display: flex; justify-content: center; align-items: center; }
+        /* Target internal SVG elements drawn by Brython's turtle module */
+        #turtle-canvas svg { max-width: 100%; max-height: 100%; }
+        .console { height: 150px; background-color: #11111b; color: #f38ba8; font-family: monospace; padding: 12px; overflow-y: auto; border-top: 2px solid #313244; font-size: 0.9rem; white-space: pre-wrap; }
+        .console.success { color: #a6e3a1; }
     </style>
 </head>
+
 <body onload="brython(1)">
 
     <header>
-        <div>
-            <h1>Python Turtle Studio</h1>
-            <div class="subtitle">Classroom Sandbox Environment</div>
-        </div>
+        <h1>🐢 Classroom Python Turtle IDE</h1>
         <div class="controls">
+            <button class="clear-btn" id="clear-btn">Clear Canvas</button>
             <button id="run-btn">▶ Run Code</button>
-            <button id="clear-btn">🧹 Clear Canvas</button>
         </div>
     </header>
 
     <div class="main-container">
-        <!-- Editor Panel -->
-        <div class="panel" id="left-panel">
-            <div class="panel-header">Python Code Editor</div>
+        <!-- Text Editor Panel -->
+        <div class="editor-side">
             <textarea id="code-editor" spellcheck="false">import turtle
 
-# Create your canvas and turtle
-t = turtle.Turtle()
-t.speed(3)
+# Setup a turtle named "Bob"
+bob = turtle.Turtle()
+bob.speed(3)
 
-# Draw a colorful square pattern
+# Draw a colorful square loop
 colors = ["red", "blue", "green", "purple"]
-
 for i in range(4):
-    t.color(colors[i])
-    t.forward(100)
-    t.right(90)
+    bob.color(colors[i])
+    bob.forward(100)
+    bob.left(90)
 </textarea>
         </div>
 
-        <!-- Output Canvas & Console -->
-        <div class="panel" id="right-panel">
-            <div class="panel-header">Turtle Canvas Output</div>
-            <div id="turtle-container">
-                <div id="turtle-div"></div>
-            </div>
-            <div class="panel-header" style="background:#f7fafc; color:#e53e3e;">Console Errors</div>
-            <div id="console-area"></div>
+        <!-- Live Presentation / Display Panel -->
+        <div class="output-side">
+            <div id="turtle-canvas"></div>
+            <div class="console" id="error-console">System ready. Click 'Run Code' to execute.</div>
         </div>
     </div>
 
-    <!-- Script to tie UI buttons to Brython execution -->
-    <script type="text/javascript">
-        document.getElementById('run-btn').addEventListener('click', function() {
-            // Clear prior error console
-            document.getElementById('console-area').innerText = '';
-            
-            // Trigger Brython script execution
-            if (window.run_python) {
-                window.run_python();
-            }
-        });
-
-        document.getElementById('clear-btn').addEventListener('click', function() {
-            const canvasDiv = document.getElementById('turtle-div');
-            canvasDiv.innerHTML = '';
-            document.getElementById('console-area').innerText = '';
-        });
-    </script>
-
-    <!-- Inline Python processing via Brython -->
+    <!-- Orchestration Script linking HTML UI to Brython Runtime -->
     <script type="text/python">
         from browser import document, window, sys
+        import turtle
 
-        # Setup custom error writing to redirect to our console UI
-        class HTMLElementWriter:
+        class ConsoleWriter:
             def __init__(self, element_id):
                 self.element = document[element_id]
             def write(self, data):
-                self.element.text += data
+                self.element.text += str(data)
             def flush(self):
                 pass
 
-        sys.stderr = HTMLElementWriter('console-area')
+        sys.stderr = ConsoleWriter("error-console")
+        sys.stdout = ConsoleWriter("error-console")
 
-        def execute_code():
-            # Clean canvas target area implicitly handled or manual check
-            # Inject target element mapping for Brython turtle module
-            # Brython turtle framework defaults to looking for a canvas element or target div
-            # Set target container window property
-            window.turtle_canvas_id = "turtle-div"
+        def run_python_code(event):
+            # 1. Reset and wipe the display environment cleanly
+            document["turtle-canvas"].html = ""
+            document["error-console"].text = ""
+            document["error-console"].attrs["class"] = "console"
             
-            src = document['code-editor'].value
+            # 2. Instruct the underlying Brython engine to map turtle output to our specific div container
+            turtle.set_defaults(container="turtle-canvas")
+            
+            # 3. Retrieve raw text string from the DOM text area
+            user_source_code = document["code-editor"].value
+            
             try:
-                exec(src, {})
-            except Exception as e:
-                sys.stderr.write(str(e) + "\n")
+                # 4. Safely compile and isolate dynamic user context execution natively
+                exec(user_source_code, {})
+                if document["error-console"].text == "":
+                    document["error-console"].text = "Code executed cleanly with no syntax errors!"
+                    document["error-console"].attrs["class"] = "console success"
+            except Exception as err:
+                sys.stderr.write(f"Error: {err}\n")
 
-        # Expose python runner to JavaScript button trigger
-        window.run_python = execute_code
+        def clear_canvas(event):
+            document["turtle-canvas"].html = ""
+            document["error-console"].text = "Canvas cleared safely."
+            document["error-console"].attrs["class"] = "console success"
+
+        # Explicitly map DOM listener hooks to Python background event handlers
+        document["run-btn"].bind("click", run_python_code)
+        document["clear-btn"].bind("click", clear_canvas)
     </script>
 
 </body>
