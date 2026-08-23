@@ -3,38 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>High School Python Turtle IDE v2</title>
+    <title>High School Python Turtle IDE v3 (Skulpt)</title>
     
-    <!-- Load Brython Components -->
-    <script src="https://cloudflare.com"></script>
-    <script src="https://cloudflare.com"></script>
+    <!-- Load Skulpt Core and Standard Libraries -->
+    <script src="https://jsdelivr.net" type="text/javascript"></script>
+    <script src="https://jsdelivr.net" type="text/javascript"></script>
 
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background-color: #1e1e2e; color: #cdd6f4; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         header { background-color: #11111b; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #313244; }
         h1 { font-size: 1.2rem; color: #89b4fa; }
-        .controls button { background-color: #a6e3a1; color: #11111b; border: none; padding: 8px 20px; font-size: 1rem; font-weight: bold; cursor: pointer; border-radius: 6px; transition: transform 0.1s; margin-left: 10px; }
+        .controls button { background-color: #a6e3a1; color: #11111b; border: none; padding: 8px 20px; font-size: 1rem; font-weight: bold; cursor: pointer; border-radius: 6px; transition: transform 0.1s; }
         .controls button:active { transform: scale(0.97); }
-        .controls .clear-btn { background-color: #f38ba8; }
         .main-container { display: flex; flex: 1; overflow: hidden; }
         .editor-side { width: 50%; display: flex; flex-direction: column; border-right: 2px solid #313244; }
         textarea { width: 100%; flex: 1; background-color: #181825; color: #a6e3a1; font-family: "Courier New", Courier, monospace; font-size: 1.05rem; padding: 15px; border: none; resize: none; outline: none; line-height: 1.5; tab-size: 4; }
         .output-side { width: 50%; display: flex; flex-direction: column; background-color: #ffffff; }
-        #canvas-container { flex: 1; background-color: #ffffff; display: flex; justify-content: center; align-items: center; overflow: hidden; position: relative; }
-        /* Target wrapper where Brython places turtle graphics */
-        #turtle-div { width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; }
+        #canvas-container { flex: 1; background-color: #ffffff; display: flex; justify-content: center; align-items: center; overflow: auto; position: relative; }
         .console { height: 130px; background-color: #11111b; color: #f38ba8; font-family: monospace; padding: 12px; overflow-y: auto; border-top: 2px solid #313244; font-size: 0.9rem; white-space: pre-wrap; }
         .console.success { color: #a6e3a1; }
     </style>
 </head>
 
-<body onload="brython(1)">
+<body>
 
     <header>
         <h1>🐢 Classroom Python Turtle IDE</h1>
         <div class="controls">
-            <button class="clear-btn" id="clear-btn">Reset</button>
             <button id="run-btn">▶ Run Code</button>
         </div>
     </header>
@@ -57,63 +53,62 @@ for i in range(4):
 </textarea>
         </div>
 
-        <!-- Output Visualization Box -->
+        <!-- Canvas and Console Display -->
         <div class="output-side">
             <div id="canvas-container">
-                <!-- Turtle graph targets this element safely -->
-                <div id="turtle-div"></div>
+                <!-- Skulpt injects the canvas inside this specific div -->
+                <div id="turtle-canvas"></div>
             </div>
             <div class="console" id="error-console">Ready. Click 'Run Code'.</div>
         </div>
     </div>
 
-    <!-- Python Execution Engine Script -->
-    <script type="text/python">
-        from browser import document, sys, window
-        import turtle
+    <!-- JavaScript Orchestration Logic -->
+    <script type="text/javascript">
+        function outf(text) { 
+            var mypre = document.getElementById("error-console"); 
+            mypre.innerHTML = mypre.innerHTML + text; 
+        } 
+        
+        function builtinRead(x) {
+            if (Sk.builtinFiles === undefined || Sk.builtinFiles["files"][x] === undefined)
+                throw "File not found: '" + x + "'";
+            return Sk.builtinFiles["files"][x];
+        }
 
-        class IDEConsole:
-            def __init__(self, target_id):
-                self.target = document[target_id]
-            def write(self, text):
-                self.target.text += str(text)
-            def flush(self):
-                pass
-
-        sys.stderr = IDEConsole("error-console")
-        sys.stdout = IDEConsole("error-console")
-
-        def run_code(ev):
-            # 1. Clear out log data safely
-            document["error-console"].text = ""
-            document["error-console"].attrs["class"] = "console"
+        function runPython() {
+            var program = document.getElementById("code-editor").value;
+            var consoleElement = document.getElementById("error-console");
             
-            # 2. Safely wipe and reinitialize turtle DOM container
-            document["turtle-div"].html = ""
-            
-            # 3. Explicitly pass DOM wrapper element directly to turtle configurations
-            turtle.set_defaults(turtle_canvas_wrapper=document["turtle-div"])
-            
-            # 4. Fetch the code inside textarea 
-            source_code = document["code-editor"].value
-            
-            try:
-                # 5. Execute code within an isolated dictionary script environment
-                exec(source_code, {"__name__": "__main__"})
-                if not document["error-console"].text:
-                    document["error-console"].text = "Code executed cleanly with no errors!"
-                    document["error-console"].attrs["class"] = "console success"
-            except Exception as error:
-                sys.stderr.write(f"Error during runtime: {error}\n")
+            // Clear prior output
+            consoleElement.innerHTML = "";
+            consoleElement.className = "console";
+            document.getElementById("turtle-canvas").innerHTML = "";
 
-        def reset_env(ev):
-            document["turtle-div"].html = ""
-            document["error-console"].text = "Canvas reset completely."
-            document["error-console"].attrs["class"] = "console success"
+            // Configure Skulpt configuration targets
+            Sk.pre = "error-console";
+            Sk.configure({output: outf, read: builtinRead}); 
+            
+            // Link Skulpt's graphic module directly to our canvas div
+            (Sk.TurtleGraphics || (Sk.TurtleGraphics = {})).target = 'turtle-canvas';
+            
+            // Compile and run the code asynchronously
+            var myPromise = Sk.misceval.asyncToPromise(function() {
+                return Sk.importMainWithBody("<stdin>", false, program, true);
+            });
+            
+            myPromise.then(function(mod) {
+                if(consoleElement.innerHTML === "") {
+                    consoleElement.innerHTML = "Code executed cleanly with no errors!";
+                    consoleElement.className = "console success";
+                }
+            }, function(err) {
+                consoleElement.innerHTML = err.toString();
+                consoleElement.className = "console";
+            });
+        }
 
-        # Attach events safely to HTML buttons
-        document["run-btn"].bind("click", run_code)
-        document["clear-btn"].bind("click", reset_env)
+        document.getElementById("run-btn").addEventListener("click", runPython);
     </script>
 
 </body>
